@@ -1,35 +1,101 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect } from "react";
+import { Logo, Nav, NumResults, Search } from "./components/Nav";
+import { Box } from "./components/Box";
+import { MovieList } from './components/Movie';
+import {
+  WatchedMoviesContainer,
+  WatchedMoviesList,
+  WatchedSummary,
+} from "./components/WatchedMovie";
+import {useFetchMovies} from "./hooks/useFetchMovies";
+import { MovieDetails } from "./components/MovieDetails";
 
-function App() {
-  const [count, setCount] = useState(0)
+/**
+ * Componente principal de la aplicación.
+ */
+export default function App() {
+  // Estado para la búsqueda de películas
+  const [query, setQuery] = useState("");
+
+  // Obtiene películas basadas en la consulta
+  const { movies, isLoading, error } = useFetchMovies(query);
+
+  // Estado de películas vistas
+  const [watched, setWatched] = useState(function () {
+  const storedValue = localStorage.getItem("watched");
+  return storedValue ? JSON.parse(storedValue) : [];
+});
+
+  // Estado para la película seleccionada
+  const [selectedId, setSelectedId] = useState(null);
+
+  /**
+   * Maneja la selección de una película.
+   * @param {string} id - ID de la película seleccionada.
+   */
+  function handleSelectMovie(id) {
+    setSelectedId(id);
+  }
+
+  /**
+   * Cierra los detalles de la película.
+   */
+  function handleCloseMovie() {
+    setSelectedId(null);
+  }
+
+  /**
+   * Agrega una película a la lista de vistas.
+   * @param {Object} movie - Película a agregar.
+   */
+  function handleAddWatched(movie) {
+    setWatched((watched) => [...watched, movie]);
+  }
+
+  function handleDeleteWatched(id) {
+    setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
+  }
+
+  useEffect(
+  function () {
+    localStorage.setItem("watched", JSON.stringify(watched));
+  },
+  [watched] // Este efecto se ejecuta cada vez que 'watched' cambie
+  );
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+      <Nav>
+        <Logo />
+        <Search query={query} setQuery={setQuery} />
+        <NumResults movies={movies} />
+      </Nav>
 
-export default App
+      <main className="main">
+        <Box>
+          {isLoading && <p className="loader">Cargando...</p>}
+          {error && <p className="error">⛔ {error}</p>}
+          <MovieList movies={movies} onSelectMovie={handleSelectMovie} />
+        </Box>
+
+        <Box>
+          <WatchedMoviesContainer>
+            {selectedId ? (
+              <MovieDetails
+                selectedId={selectedId}
+                onCloseMovie={handleCloseMovie}
+                onAddWatched={handleAddWatched}
+                watched={watched}
+              />
+            ) : (
+              <>
+                <WatchedSummary watched={watched} />
+                <WatchedMoviesList watched={watched} onDeleteWatched={handleDeleteWatched} />
+              </>
+            )}
+          </WatchedMoviesContainer>
+        </Box>
+      </main>
+    </>
+  );
+}
